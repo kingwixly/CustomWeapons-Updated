@@ -3,7 +3,7 @@
     <PropertyGroup>
         <TargetFramework>net472</TargetFramework>
         <Nullable>enable</Nullable>
-        <AssemblyName>com.minec.customweapons</AssemblyName>
+        <AssemblyName>CustomWeapons</AssemblyName>
         <Product>CustomWeapons</Product>
         <Version>1.1.0</Version>
         <UnityPluginsDir>/home/tylerb/Unity/Projects/Nuclear Option/NOBlueprinter/Assets/Plugins/CustomWeapons</UnityPluginsDir>
