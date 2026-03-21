@@ -5,7 +5,7 @@
         <Nullable>enable</Nullable>
         <AssemblyName>CustomWeapons</AssemblyName>
         <Product>CustomWeapons</Product>
-        <Version>1.1.0</Version>
+        <Version>2.0.0</Version>
         <UnityPluginsDir>/home/tylerb/Unity/Projects/Nuclear Option/NOBlueprinter/Assets/Plugins/CustomWeapons</UnityPluginsDir>
         <LangVersion>9</LangVersion>
         <NoStdLib>true</NoStdLib>
