@@ -207,8 +207,11 @@ namespace CustomWeapons.Stonehenge
 				StonehengeRegistry.DeregisterTurret(this, attachedUnit.NetworkHQ);
 			}
 
-			attachedUnit.onDisableUnit -= StonehengeControl_OnUnitDisable;
-			attachedUnit.onChangeFaction -= StonehengeControl_OnChangeFaction;
+			if (attachedUnit != null)
+			{
+				attachedUnit.onDisableUnit -= StonehengeControl_OnUnitDisable;
+				attachedUnit.onChangeFaction -= StonehengeControl_OnChangeFaction;
+			}
 		}
 
 		private void StonehengeControl_OnUnitDisable(Unit unit)

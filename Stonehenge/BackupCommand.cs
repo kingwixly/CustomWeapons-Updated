@@ -1,4 +1,4 @@
-/*using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -42,12 +42,22 @@ namespace CustomWeapons.Stonehenge
 				targetDetector.onScan += BackupCommand_OnCompleteScan;
 			}
 
-			weaponStation = control.turret.GetWeaponStation();
+			// Guard against `control` being unwired in the prefab: without it
+			// this component has no turret to drive and may as well disable itself
+			// before FixedUpdate starts dereferencing nulls.
+			if (control != null && control.turret != null)
+			{
+				weaponStation = control.turret.GetWeaponStation();
+			}
+			else
+			{
+				base.enabled = false;
+			}
 		}
 
 		private void FixedUpdate()
 		{
-			if (attachedUnit == null || attachedUnit.disabled)
+			if (attachedUnit == null || attachedUnit.disabled || weaponStation == null)
 			{
 				base.enabled = false;
 				return;
@@ -57,13 +67,12 @@ namespace CustomWeapons.Stonehenge
 			if ( target != null && targets.TryGetValue(target, out data))
 			{
 				control.Aim(data.pos + data.error, data.vel);
-			}
 
-			if (control.IsOnTarget())
-			{
-				weaponStation.Fire(attachedUnit, target);
+				if (control.IsOnTarget())
+				{
+					weaponStation.Fire(attachedUnit, target);
+				}
 			}
-			
 		}
 
 		private void BackupCommand_OnDetectTarget(Unit unit)
@@ -82,7 +91,7 @@ namespace CustomWeapons.Stonehenge
 			foreach (var kvp in targets)
 			{
 				var unit = kvp.Key;
-				if (targetDetector.detectedTargets.Contains(unit))
+				if (unit != null && targetDetector.detectedTargets.Contains(unit))
 				{
 					targets[unit].pos = unit.transform.position;
 					targets[unit].vel = unit.rb?.velocity ?? Vector3.zero;
@@ -105,9 +114,23 @@ namespace CustomWeapons.Stonehenge
 			targets.Remove(unit);
 		}
 
+		private void OnDestroy()
+		{
+			// Mirror the Awake subscriptions so the event handlers don't leak.
+			if (targetDetector != null)
+			{
+				targetDetector.onDetectTarget -= BackupCommand_OnDetectTarget;
+				targetDetector.onScan -= BackupCommand_OnCompleteScan;
+			}
+			if (target != null)
+			{
+				target.onDisableUnit -= BackupCommand_OnTargetDisabled;
+			}
+		}
+
 		private void ChooseTarget(bool clearAfterSearch)
 		{
-			if (attachedUnit.disabled)
+			if (attachedUnit == null || attachedUnit.disabled)
 			{
 				//how
 				return;
@@ -117,7 +140,9 @@ namespace CustomWeapons.Stonehenge
 			if (target != null)
 			{
 				target.onDisableUnit -= BackupCommand_OnTargetDisabled;
-				if (attachedUnit.NetworkHQ.trackingDatabase.TryGetValue(target.persistentID, out var value))
+				if (attachedUnit.NetworkHQ != null &&
+				    attachedUnit.NetworkHQ.trackingDatabase != null &&
+				    attachedUnit.NetworkHQ.trackingDatabase.TryGetValue(target.persistentID, out var value))
 				{
 					value.attackers--;
 				}
@@ -127,6 +152,7 @@ namespace CustomWeapons.Stonehenge
 			priorityThreshold = 0f;
 			foreach (Unit potentialTarget in targets.Keys)
 			{
+				if (potentialTarget == null) continue;
 				TargetData data;
 				if (targets.TryGetValue(potentialTarget, out data))
 				{
@@ -137,28 +163,46 @@ namespace CustomWeapons.Stonehenge
 			if (target != null)
 			{
 				target.onDisableUnit += BackupCommand_OnTargetDisabled;
-				attachedUnit.NetworkHQ.trackingDatabase[target.persistentID].attackers++;
+				if (attachedUnit.NetworkHQ != null &&
+				    attachedUnit.NetworkHQ.trackingDatabase != null &&
+				    attachedUnit.NetworkHQ.trackingDatabase.TryGetValue(target.persistentID, out var v))
+				{
+					v.attackers++;
+				}
 			}
 
-			Span<PersistentID> span = stackalloc PersistentID[1];
-			span[0] = ((target != null) ? target.persistentID : PersistentID.None);
+			// Use a plain array instead of stackalloc Span<PersistentID> so this
+			// compiles cleanly against the project's net472 / LangVersion 9 setup.
+			// RpcSetStationTargets accepts PersistentID[] which is equivalent for
+			// this single-element call.
+			PersistentID[] ids = new PersistentID[] { (target != null) ? target.persistentID : PersistentID.None };
 
-			if (target != unit)
+			if (target != unit && weaponStation != null)
 			{
-				attachedUnit.RpcSetStationTargets(weaponStation.Number, span);
+				attachedUnit.RpcSetStationTargets(weaponStation.Number, ids);
 			}
 		}
 
 		private void AssessTargetPriority(Unit targetCandidate, TargetData data)
 		{
+			// Null-guard everything before any field access. The original ordered
+			// this check after dereferencing `targetCandidate.persistentID`, which
+			// would NRE the moment any candidate had been freed mid-scan.
+			if (targetCandidate == null || targetCandidate.disabled ||
+			    targetCandidate.NetworkHQ == null || attachedUnit == null || attachedUnit.disabled ||
+			    attachedUnit.NetworkHQ == null)
+			{
+				return;
+			}
+
 			TrackingInfo trackingData = attachedUnit.NetworkHQ.GetTrackingData(targetCandidate.persistentID);
-			if (trackingData == null || targetCandidate == null || targetCandidate.disabled ||
-			    targetCandidate.NetworkHQ == null || attachedUnit.disabled)
+			if (trackingData == null)
 			{
 				return;
 			}
 
 			float num = FastMath.Distance(data.pos, base.transform.position);
+			if (num <= 0f) return;
 			float num2 = weaponStation.WeaponInfo.targetRequirements.maxRange / num;
 			if (!(num2 < 0.7f))
 			{
@@ -192,4 +236,4 @@ namespace CustomWeapons.Stonehenge
 			}
 		}
 	}
-}*/
+}

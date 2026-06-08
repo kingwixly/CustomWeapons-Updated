@@ -97,10 +97,11 @@ namespace CustomWeapons.Stonehenge
 				StonehengeRegistry.RegisterCoordinator(this, attachedUnit.NetworkHQ);
 			}
 
-			foreach (StonehengeControl controller in controllers)
-			{
-				controller.AttachedUnit.NetworkHQ = attachedUnit?.NetworkHQ;
-			}
+			// Drop every registered controller on team change. NetworkHQ is a
+			// Mirage NetworkVariable on Unit and is owned/synced by the controller's
+			// own Unit; the coordinator must not try to assign across units. The
+			// next SearchTurretControllers pass on the new team will repopulate.
+			controllers.Clear();
 		}
 
 		private void OnDestroy()
@@ -109,9 +110,11 @@ namespace CustomWeapons.Stonehenge
 			{
 				StonehengeRegistry.DeregisterCoordinator(this, attachedUnit.NetworkHQ);
 			}
-			attachedUnit.onDisableUnit -= Coordinator_OnUnitDisabled;
-			attachedUnit.onChangeFaction -= Coordinator_OnTeamChanged;
-			
+			if (attachedUnit != null)
+			{
+				attachedUnit.onDisableUnit -= Coordinator_OnUnitDisabled;
+				attachedUnit.onChangeFaction -= Coordinator_OnTeamChanged;
+			}
 		}
 	}
 }
