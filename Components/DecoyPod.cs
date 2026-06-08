@@ -50,7 +50,7 @@ namespace CustomWeapons.Components
 
 		private void LateUpdate()
 		{
-			if (lastFired > Time.timeSinceLevelLoad + 0.2)
+			if (Time.timeSinceLevelLoad > lastFired + 0.2)
 			{
 				fireCommanded = false;
 				foreach (Aircraft aircraft in decoys)
